@@ -172,7 +172,7 @@ String & String::copy(const char *cstr, unsigned int length) {
         return *this;
     }
     len = length;
-    strcpy(buffer, cstr);
+    memcpy(buffer, cstr, length);
     return *this;
 }
 
@@ -182,7 +182,7 @@ String & String::copy(const __FlashStringHelper *pstr, unsigned int length) {
         return *this;
     }
     len = length;
-    strcpy_P(buffer, (PGM_P)pstr);
+    memcpy_P(buffer, (PGM_P)pstr, length);
     return *this;
 }
 
@@ -266,9 +266,14 @@ unsigned char String::concat(const char *cstr, unsigned int length) {
         return 1;
     if(!reserve(newlen))
         return 0;
-    strcpy(buffer + len, cstr);
-    len = newlen;
-    return 1;
+    //strcpy(buffer + len, cstr); // <--original 
+	 
+	 memcpy(buffer + len, cstr, length); // <-- should be 
+	 *(buffer + newlen) = 0; // <-- should be
+
+	 len = newlen; 
+	 return 1; 
+
 }
 
 unsigned char String::concat(const char *cstr) {
@@ -332,9 +337,15 @@ unsigned char String::concat(const __FlashStringHelper * str) {
     if (length == 0) return 1;
     unsigned int newlen = len + length;
     if (!reserve(newlen)) return 0;
-    strcpy_P(buffer + len, (PGM_P)str);
-    len = newlen;
-    return 1;
+   
+	// strcpy_P(buffer + len, (PGM_P)str); // <--original 
+ 
+	 memcpy_P(buffer + len, (PGM_P)str, length); // <-- should be 
+	 *(buffer + newlen) = 0; // <-- should be
+
+	 len = newlen; 
+	 return 1; 
+
 }
 
 /*********************************************/
