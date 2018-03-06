@@ -24,7 +24,7 @@
 #include <Arduino.h>
 #include "WString.h"
 #include "stdlib_noniso.h"
-
+#include "assert.h"
 /*********************************************/
 /*  Constructors                             */
 /*********************************************/
@@ -113,10 +113,11 @@ String::String(double value, unsigned char decimalPlaces) {
 }
 
 String::~String() {
+	checkWatermarks();
     if(buffer) {
         free(buffer);
     }
-    init();
+    //init();
 }
 
 // /*********************************************/
@@ -130,8 +131,9 @@ inline void String::init(void) {
 }
 
 void String::invalidate(void) {
-    if(buffer)
-        free(buffer);
+	checkWatermarks();
+    if(wmBuffer)
+        free(wmBuffer);
     init();
 }
 
@@ -146,20 +148,34 @@ unsigned char String::reserve(unsigned int size) {
     return 0;
 }
 
+void String::checkWatermarks() {
+	auto watermarkLen = strlen(watermark);
+	if (wmBuffer) {
+		//low watermark
+		;
+		//assert(memcmp(wmBuffer, watermark, watermarkLen) == 0);
+
+		//high watermark
+		//assert(memcmp(wmBuffer + capacity + 1 + watermarkLen, watermark, watermarkLen) == 0);
+	}
+}
+
 unsigned char String::changeBuffer(unsigned int maxStrLen) {
-    size_t newSize = (maxStrLen + 16) & (~0xf);
-    char *newbuffer = (char *) realloc(buffer, newSize);
-    if(newbuffer) {
-        size_t oldSize = capacity + 1; // include NULL.
-        if (newSize > oldSize)
-        {
-            memset(newbuffer + oldSize, 0, newSize - oldSize);
-        }
-        capacity = newSize - 1;
-        buffer = newbuffer;
-        return 1;
-    }
-    return 0;
+	checkWatermarks();
+	auto watermarkLen = strlen(watermark);
+	char *newbuffer = (char *)realloc(wmBuffer, maxStrLen + watermarkLen * 2 + 2);
+ 	if (newbuffer) {
+		wmBuffer = newbuffer;
+		//low watermark
+		memcpy(newbuffer, watermark, strlen(watermark));
+		buffer = newbuffer + watermarkLen;
+
+		//high watermark
+		memcpy(newbuffer + maxStrLen + 2 + watermarkLen, watermark, strlen(watermark));
+		capacity = maxStrLen + 1;
+		return 1;
+	}
+	return 0;
 }
 
 // /*********************************************/
@@ -188,16 +204,17 @@ String & String::copy(const __FlashStringHelper *pstr, unsigned int length) {
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 void String::move(String &rhs) {
-    if(buffer) {
+    if(wmBuffer) {
         if(capacity >= rhs.len) {
             strcpy(buffer, rhs.buffer);
             len = rhs.len;
             rhs.len = 0;
             return;
         } else {
-            free(buffer);
+            free(wmBuffer);
         }
     }
+
     buffer = rhs.buffer;
     capacity = rhs.capacity;
     len = rhs.len;
