@@ -132,8 +132,8 @@ inline void String::init(void) {
 
 void String::invalidate(void) {
 	checkWatermarks();
-    if(wmBuffer)
-        free(wmBuffer);
+    if(buffer)
+        free(buffer);
     init();
 }
 
@@ -163,19 +163,24 @@ void String::checkWatermarks() {
 unsigned char String::changeBuffer(unsigned int maxStrLen) {
 	checkWatermarks();
 	auto watermarkLen = strlen(watermark);
-	char *newbuffer = (char *)realloc(wmBuffer, maxStrLen + watermarkLen * 2 + 2);
- 	if (newbuffer) {
-		wmBuffer = newbuffer;
-		//low watermark
-		memcpy(newbuffer, watermark, strlen(watermark));
-		buffer = newbuffer + watermarkLen;
 
-		//high watermark
-		memcpy(newbuffer + maxStrLen + 2 + watermarkLen, watermark, strlen(watermark));
-		capacity = maxStrLen + 1;
-		return 1;
-	}
-	return 0;
+    size_t newSize = (maxStrLen + 16 + watermarkLen * 2 + 2) & (~0xf);
+    
+    char *newbuffer = (char *) realloc(wmBuffer, newSize);
+
+    if(newbuffer) {
+        size_t oldSize = capacity + 1; // include NULL.
+		wmBuffer = newbuffer;
+
+		strncpy(newbuffer + maxStrLen + 2 + watermarkLen,  watermark, strlen(watermark));
+
+        capacity = (maxStrLen + 16) & (~0xf) - 1;
+
+
+        buffer = newbuffer + watermarkLen;
+        return 1;
+    }
+    return 0;
 }
 
 // /*********************************************/
@@ -204,17 +209,16 @@ String & String::copy(const __FlashStringHelper *pstr, unsigned int length) {
 
 #ifdef __GXX_EXPERIMENTAL_CXX0X__
 void String::move(String &rhs) {
-    if(wmBuffer) {
+    if(buffer) {
         if(capacity >= rhs.len) {
             strcpy(buffer, rhs.buffer);
             len = rhs.len;
             rhs.len = 0;
             return;
         } else {
-            free(wmBuffer);
+            free(buffer);
         }
     }
-
     buffer = rhs.buffer;
     capacity = rhs.capacity;
     len = rhs.len;
