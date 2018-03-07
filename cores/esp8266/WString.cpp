@@ -149,6 +149,8 @@ unsigned char String::reserve(unsigned int size) {
 }
 
 void String::checkWatermarks() {
+
+
 	auto watermarkLen = strlen(watermark);
 	if (wmBuffer) {
 		//low watermark
@@ -156,7 +158,8 @@ void String::checkWatermarks() {
 		//assert(memcmp(wmBuffer, watermark, watermarkLen) == 0);
 
 		//high watermark
-		//assert(memcmp(wmBuffer + capacity + 1 + watermarkLen, watermark, watermarkLen) == 0);
+		if (memcmp(wmBuffer + capacity + 1 + watermarkLen, watermark, watermarkLen) != 0) 
+            assert(0);
 	}
 }
 
@@ -177,7 +180,7 @@ unsigned char String::changeBuffer(unsigned int maxStrLen) {
         capacity = (maxStrLen + 16) & (~0xf) - 1;
 
 
-        buffer = newbuffer + watermarkLen;
+        buffer = newbuffer;
         return 1;
     }
     return 0;
